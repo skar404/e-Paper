@@ -40,12 +40,13 @@ https://www.waveshare.com
 
 ---
 
-|   |   |
-|---|---|
 |	This version |   V1.0 |
+|---|---|
 |  Date        |   2019-06-20 |
 |  Info        |   Here is an English version of the documentation for your quick use. |
-******************************************************************************/
+
+---
+
 This file is to help you use this Demo.
 Since our ink screens are getting more and more, it is not convenient for our maintenance, so all the ink screen programs are made into one project.
 A brief description of the use of this project is here:
