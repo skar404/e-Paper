@@ -1,65 +1,13 @@
 # *****************************************************************************
-# * | File        :	  epd1in54.py
+# * | File        :	  epd2in9.py
 # * | Author      :   Waveshare team
 # * | Function    :   Electronic paper driver
 # * | Info        :
 # *----------------
-# * | This version:   V3.1
+# * | This version:   V4.0
 # * | Date        :   2019-06-20
 # # | Info        :   python demo
 # -----------------------------------------------------------------------------
-# V3.1(2019-06-18):
-# 2.remove commands define:
-#   #define PANEL_SETTING                               0x00
-#   #define POWER_SETTING                               0x01
-#   #define POWER_OFF                                   0x02
-#   #define POWER_OFF_SEQUENCE_SETTING                  0x03
-#   #define POWER_ON                                    0x04
-#   #define POWER_ON_MEASURE                            0x05
-#   #define BOOSTER_SOFT_START                          0x06
-#   #define DEEP_SLEEP                                  0x07
-#   #define DATA_START_TRANSMISSION_1                   0x10
-#   #define DATA_STOP                                   0x11
-#   #define DISPLAY_REFRESH                             0x12
-#   #define DATA_START_TRANSMISSION_2                   0x13
-#   #define PLL_CONTROL                                 0x30
-#   #define TEMPERATURE_SENSOR_COMMAND                  0x40
-#   #define TEMPERATURE_SENSOR_CALIBRATION              0x41
-#   #define TEMPERATURE_SENSOR_WRITE                    0x42
-#   #define TEMPERATURE_SENSOR_READ                     0x43
-#   #define VCOM_AND_DATA_INTERVAL_SETTING              0x50
-#   #define LOW_POWER_DETECTION                         0x51
-#   #define TCON_SETTING                                0x60
-#   #define TCON_RESOLUTION                             0x61
-#   #define SOURCE_AND_GATE_START_SETTING               0x62
-#   #define GET_STATUS                                  0x71
-#   #define AUTO_MEASURE_VCOM                           0x80
-#   #define VCOM_VALUE                                  0x81
-#   #define VCM_DC_SETTING_REGISTER                     0x82
-#   #define PROGRAM_MODE                                0xA0
-#   #define ACTIVE_PROGRAM                              0xA1
-#   #define READ_OTP_DATA                               0xA2
-# -----------------------------------------------------------------------------
-# V3.0(2018-11-01):
-# # 1.Remove:
-#   digital_write(self, pin, value)
-#   digital_read(self, pin)
-#   delay_ms(self, delaytime)
-#   set_lut(self, lut)
-#   self.lut = self.lut_full_update
-# * 2.Change:
-#   display_frame -> TurnOnDisplay
-#   set_memory_area -> SetWindow
-#   set_memory_pointer -> SetCursor
-# * 3.How to use
-#   epd = epd1in54.EPD()
-#   epd.init(epd.lut_full_update)
-#   image = Image.new('1', (epd1in54.EPD_WIDTH, epd1in54.EPD_HEIGHT), 255)
-#   ...
-#   drawing ......
-#   ...
-#   epd.display(getbuffer(image))
-# ******************************************************************************/
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documnetation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -80,11 +28,11 @@
 #
 
 import logging
-from . import epdconfig
+from waveshare_epd import epdconfig
 
 # Display resolution
-EPD_WIDTH       = 200
-EPD_HEIGHT      = 200
+EPD_WIDTH       = 128
+EPD_HEIGHT      = 296
 
 class EPD:
     def __init__(self):
@@ -96,16 +44,18 @@ class EPD:
         self.height = EPD_HEIGHT
 
     lut_full_update = [
-        0x02, 0x02, 0x01, 0x11, 0x12, 0x12, 0x22, 0x22, 
-        0x66, 0x69, 0x69, 0x59, 0x58, 0x99, 0x99, 0x88, 
-        0x00, 0x00, 0x00, 0x00, 0xF8, 0xB4, 0x13, 0x51, 
-        0x35, 0x51, 0x51, 0x19, 0x01, 0x00
+        0x50, 0xAA, 0x55, 0xAA, 0x11, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0xFF, 0xFF, 0x1F, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     ]
 
     lut_partial_update  = [
-        0x10, 0x18, 0x18, 0x08, 0x18, 0x18, 0x08, 0x00, 
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-        0x00, 0x00, 0x00, 0x00, 0x13, 0x14, 0x44, 0x12, 
+        0x10, 0x18, 0x18, 0x08, 0x18, 0x18,
+        0x08, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x13, 0x14, 0x44, 0x12,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     ]
         
@@ -113,7 +63,7 @@ class EPD:
     def reset(self):
         epdconfig.digital_write(self.reset_pin, 1)
         epdconfig.delay_ms(200) 
-        epdconfig.digital_write(self.reset_pin, 0)         # module reset
+        epdconfig.digital_write(self.reset_pin, 0)
         epdconfig.delay_ms(10)
         epdconfig.digital_write(self.reset_pin, 1)
         epdconfig.delay_ms(200)   
@@ -131,10 +81,8 @@ class EPD:
         epdconfig.digital_write(self.cs_pin, 1)
         
     def ReadBusy(self):
-        logging.debug("e-Paper busy")
-        while(epdconfig.digital_read(self.busy_pin) == 1):      # 0: idle, 1: busy
-            epdconfig.delay_ms(100)
-        logging.debug("e-Paper busy release")
+        while(epdconfig.digital_read(self.busy_pin) == 1):      #  0: idle, 1: busy
+            epdconfig.delay_ms(200) 
 
     def TurnOnDisplay(self):
         self.send_command(0x22) # DISPLAY_UPDATE_CONTROL_2
@@ -142,7 +90,9 @@ class EPD:
         self.send_command(0x20) # MASTER_ACTIVATION
         self.send_command(0xFF) # TERMINATE_FRAME_READ_WRITE
         
+        logging.debug("e-Paper busy")
         self.ReadBusy()
+        logging.debug("e-Paper busy release")  
 
     def SetWindow(self, x_start, y_start, x_end, y_end):
         self.send_command(0x44) # SET_RAM_X_ADDRESS_START_END_POSITION
@@ -159,11 +109,10 @@ class EPD:
         self.send_command(0x4E) # SET_RAM_X_ADDRESS_COUNTER
         # x point must be the multiple of 8 or the last 3 bits will be ignored
         self.send_data((x >> 3) & 0xFF)
-        
         self.send_command(0x4F) # SET_RAM_Y_ADDRESS_COUNTER
         self.send_data(y & 0xFF)
         self.send_data((y >> 8) & 0xFF)
-        # self.ReadBusy()
+        self.ReadBusy()
         
     def init(self, lut):
         if (epdconfig.module_init() != 0):
@@ -176,7 +125,7 @@ class EPD:
         self.send_data(((EPD_HEIGHT - 1) >> 8) & 0xFF)
         self.send_data(0x00) # GD = 0 SM = 0 TB = 0
         
-        self.send_command(0x0C) # BOOSTER_SOFT_START_CONTROL
+        self.send_command(0x0C) # BOOSTER_SOFT_START_CONTROL 
         self.send_data(0xD7)
         self.send_data(0xD6)
         self.send_data(0x9D)
@@ -193,27 +142,28 @@ class EPD:
         self.send_command(0x11) # DATA_ENTRY_MODE_SETTING
         self.send_data(0x03) # X increment Y increment
         
-        # set the look-up table register
-        self.send_command(0x32)
+        self.send_command(0x32) # WRITE_LUT_REGISTER
         for i in range(0, len(lut)):
             self.send_data(lut[i])
         # EPD hardware init end
         return 0
 
     def getbuffer(self, image):
-        buf = [0xFF] * (int(self.width / 8) * self.height)
+        # logging.debug("bufsiz = ",int(self.width/8) * self.height)
+        buf = [0xFF] * (int(self.width/8) * self.height)
         image_monocolor = image.convert('1')
         imwidth, imheight = image_monocolor.size
         pixels = image_monocolor.load()
+        # logging.debug("imwidth = %d, imheight = %d",imwidth,imheight)
         if(imwidth == self.width and imheight == self.height):
-            logging.debug("Horizontal")
+            logging.debug("Vertical")
             for y in range(imheight):
                 for x in range(imwidth):
                     # Set the bits for the column of pixels at the current position.
                     if pixels[x, y] == 0:
                         buf[int((x + y * self.width) / 8)] &= ~(0x80 >> (x % 8))
         elif(imwidth == self.height and imheight == self.width):
-            logging.debug("Vertical")
+            logging.debug("Horizontal")
             for y in range(imheight):
                 for x in range(imwidth):
                     newx = y
@@ -224,28 +174,22 @@ class EPD:
 
     def display(self, image):
         if (image == None):
-            return
-            
-        self.SetWindow(0, 0, self.width, self.height)
+            return            
+        self.SetWindow(0, 0, self.width - 1, self.height - 1)
         for j in range(0, self.height):
             self.SetCursor(0, j)
-            self.send_command(0x24)
+            self.send_command(0x24) # WRITE_RAM
             for i in range(0, int(self.width / 8)):
                 self.send_data(image[i + j * int(self.width / 8)])   
         self.TurnOnDisplay()
         
     def Clear(self, color):
-        # self.SetWindow(0, 0, self.width - 1, self.height - 1)
-        # send the color data
-        self.SetWindow(0, 0, self.width, self.height)
-        # epdconfig.digital_write(self.dc_pin, 1)
-        # epdconfig.digital_write(self.cs_pin, 0)
+        self.SetWindow(0, 0, self.width - 1, self.height - 1)
         for j in range(0, self.height):
             self.SetCursor(0, j)
-            self.send_command(0x24)
+            self.send_command(0x24) # WRITE_RAM
             for i in range(0, int(self.width / 8)):
-                self.send_data(color)
-        # epdconfig.digital_write(self.cs_pin, 1)
+                self.send_data(color)   
         self.TurnOnDisplay()
 
     def sleep(self):
@@ -253,6 +197,5 @@ class EPD:
         self.send_data(0x01)
         
         epdconfig.module_exit()
-
 ### END OF FILE ###
 

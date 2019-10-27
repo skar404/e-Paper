@@ -1,5 +1,5 @@
 # *****************************************************************************
-# * | File        :	  epd7in5.py
+# * | File        :	  epd1in54c.py
 # * | Author      :   Waveshare team
 # * | Function    :   Electronic paper driver
 # * | Info        :
@@ -26,14 +26,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 #
-
-
 import logging
-from . import epdconfig
+from waveshare_epd import epdconfig
 
 # Display resolution
-EPD_WIDTH       = 800
-EPD_HEIGHT      = 480
+EPD_WIDTH       = 152
+EPD_HEIGHT      = 152
 
 class EPD:
     def __init__(self):
@@ -43,15 +41,15 @@ class EPD:
         self.cs_pin = epdconfig.CS_PIN
         self.width = EPD_WIDTH
         self.height = EPD_HEIGHT
-    
+        
     # Hardware reset
     def reset(self):
         epdconfig.digital_write(self.reset_pin, 1)
-        epdconfig.delay_ms(200) 
+        epdconfig.delay_ms(10) 
         epdconfig.digital_write(self.reset_pin, 0)
-        epdconfig.delay_ms(2)
+        epdconfig.delay_ms(1)
         epdconfig.digital_write(self.reset_pin, 1)
-        epdconfig.delay_ms(200)   
+        epdconfig.delay_ms(10)   
 
     def send_command(self, command):
         epdconfig.digital_write(self.dc_pin, 0)
@@ -59,7 +57,7 @@ class EPD:
         epdconfig.spi_writebyte([command])
         epdconfig.digital_write(self.cs_pin, 1)
 
-    def send_data(self, data):
+    def send_data(self, data):        
         epdconfig.digital_write(self.dc_pin, 1)
         epdconfig.digital_write(self.cs_pin, 0)
         epdconfig.spi_writebyte([data])
@@ -67,67 +65,50 @@ class EPD:
         
     def ReadBusy(self):
         logging.debug("e-Paper busy")
-        self.send_command(0x71)
-        busy = epdconfig.digital_read(self.busy_pin)
-        while(busy == 0):
-            self.send_command(0x71)
-            busy = epdconfig.digital_read(self.busy_pin)
-        epdconfig.delay_ms(200)
-        
+        while(epdconfig.digital_read(self.busy_pin) == 0):      #  0: idle, 1: busy
+            epdconfig.delay_ms(200)                
+        logging.debug("e-Paper busy release")
+     
     def init(self):
         if (epdconfig.module_init() != 0):
             return -1
         # EPD hardware init start
         self.reset()
         
-        self.send_command(0x01)			#POWER SETTING
-        self.send_data(0x07)
-        self.send_data(0x07)    #VGH=20V,VGL=-20V
-        self.send_data(0x3f)		#VDH=15V
-        self.send_data(0x3f)		#VDL=-15V
-
-        self.send_command(0x04) #POWER ON
-        epdconfig.delay_ms(100)
+        self.send_command(0x06) # boost soft start
+        self.send_data(0x17)
+        self.send_data(0x17)
+        self.send_data(0x17)
+        self.send_command(0x04) # power on
+        
         self.ReadBusy()
-
-        self.send_command(0X00)			#PANNEL SETTING
-        self.send_data(0x1F)   #KW-3f   KWR-2F	BWROTP 0f	BWOTP 1f
-
-        self.send_command(0x61)        	#tres
-        self.send_data(0x03)		#source 800
-        self.send_data(0x20)
-        self.send_data(0x01)		#gate 480
-        self.send_data(0xE0)
-
-        self.send_command(0X15)
+        
+        self.send_command(0x00) # panel setting
+        self.send_data(0x0f) # LUT from OTP,160x296
+        self.send_data(0x0d) # VCOM to 0V fast
+        
+        self.send_command(0x61) # resolution setting
+        self.send_data(0x98)
         self.send_data(0x00)
-
-        self.send_command(0X50)			#VCOM AND DATA INTERVAL SETTING
-        self.send_data(0x10)
-        self.send_data(0x07)
-
-        self.send_command(0X60)			#TCON SETTING
-        self.send_data(0x22)
-
-        # EPD hardware init end
-        return 0
+        self.send_data(0x98)
+        
+        self.send_command(0x50)
+        self.send_data(0x77)
 
     def getbuffer(self, image):
-        # logging.debug("bufsiz = ",int(self.width/8) * self.height)
         buf = [0xFF] * (int(self.width/8) * self.height)
         image_monocolor = image.convert('1')
         imwidth, imheight = image_monocolor.size
         pixels = image_monocolor.load()
-        # logging.debug("imwidth = %d, imheight = %d",imwidth,imheight)
         if(imwidth == self.width and imheight == self.height):
-            logging.debug("Vertical")
+            logging.debug("Horizontal")
             for y in range(imheight):
                 for x in range(imwidth):
-                    # Set the bits for the column of pixels at the current position.
+                    #  Set the bits for the column of pixels at the current position.
                     if pixels[x, y] == 0:
                         buf[int((x + y * self.width) / 8)] &= ~(0x80 >> (x % 8))
         elif(imwidth == self.height and imheight == self.width):
-            logging.debug("Horizontal")
+            logging.debug("Vertical")
             for y in range(imheight):
                 for x in range(imwidth):
                     newx = y
@@ -135,35 +116,37 @@ class EPD:
                     if pixels[x, y] == 0:
                         buf[int((newx + newy*self.width) / 8)] &= ~(0x80 >> (y % 8))
         return buf
-        
-    def display(self, image):
-        self.send_command(0x13)
+
+    def display(self, blackimage, yellowimage):
+        self.send_command(0x10)
+        logging.debug("blackimage")
         for i in range(0, int(self.width * self.height / 8)):
-            self.send_data(~image[i]);
-                
+            self.send_data(blackimage[i])
+        self.send_command(0x13)
+        logging.debug("yellowimage")
+        for i in range(0, int(self.width * self.height / 8)):
+            self.send_data(yellowimage[i])
+            
         self.send_command(0x12)
-        epdconfig.delay_ms(100)
         self.ReadBusy()
         
     def Clear(self):
         self.send_command(0x10)
         for i in range(0, int(self.width * self.height / 8)):
-            self.send_data(0x00)
-            
+            self.send_data(0xFF)            
         self.send_command(0x13)
         for i in range(0, int(self.width * self.height / 8)):
-            self.send_data(0x00)
-                
+            self.send_data(0xFF)
+            
         self.send_command(0x12)
-        epdconfig.delay_ms(100)
         self.ReadBusy()
 
+    #  after this, call epd.init() to awaken the module
     def sleep(self):
-        self.send_command(0x02) # POWER_OFF
-        self.ReadBusy()
-        
-        self.send_command(0x07) # DEEP_SLEEP
-        self.send_data(0XA5)
+        self.send_command(0X02)  #  power off
+        self.ReadBusy() 
+        self.send_command(0X07)  #  deep sleep
+        self.send_data(0xA5)
         
         epdconfig.module_exit()
 ### END OF FILE ###

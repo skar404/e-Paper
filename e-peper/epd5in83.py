@@ -1,5 +1,5 @@
 # *****************************************************************************
-# * | File        :	  epd7in5.py
+# * | File        :	  epd5in83.py
 # * | Author      :   Waveshare team
 # * | Function    :   Electronic paper driver
 # * | Info        :
@@ -29,11 +29,11 @@
 
 
 import logging
-from . import epdconfig
+from waveshare_epd import epdconfig
 
 # Display resolution
-EPD_WIDTH       = 640
-EPD_HEIGHT      = 384
+EPD_WIDTH       = 600
+EPD_HEIGHT      = 448
 
 class EPD:
     def __init__(self):
@@ -106,10 +106,10 @@ class EPD:
         self.send_data(0x22)
         
         self.send_command(0x61) # TCON_RESOLUTION
-        self.send_data(EPD_WIDTH >> 8)     #source 640
-        self.send_data(EPD_WIDTH & 0xff)
-        self.send_data(EPD_HEIGHT >> 8)     #gate 384
-        self.send_data(EPD_HEIGHT & 0xff)
+        self.send_data(0x02) # source 600
+        self.send_data(0x58)
+        self.send_data(0x01) # gate 448
+        self.send_data(0xC0)
         
         self.send_command(0x82) # VCM_DC_SETTING
         self.send_data(0x1E) # decide by LUT file
@@ -121,7 +121,6 @@ class EPD:
         return 0
 
     def getbuffer(self, image):
-        logging.debug("1234")
         buf = [0x00] * int(self.width * self.height / 4)
         image_monocolor = image.convert('1')
         imwidth, imheight = image_monocolor.size
@@ -150,8 +149,8 @@ class EPD:
                         buf[int((newx + newy*self.width) / 4)] |= 0x40 >> (y % 4 * 2)
                     else:                           # white
                         buf[int((newx + newy*self.width) / 4)] |= 0xC0 >> (y % 4 * 2)
-        return buf    
-        
+        return buf
+
     def display(self, image):
         self.send_command(0x10)
         for i in range(0, int(self.width / 4 * self.height)):
@@ -186,17 +185,16 @@ class EPD:
         for i in range(0, int(self.width / 4 * self.height)):
             for j in range(0, 4):
                 self.send_data(0x33)
-                
         self.send_command(0x12)
         self.ReadBusy()
 
     def sleep(self):
         self.send_command(0x02) # POWER_OFF
         self.ReadBusy()
-        
         self.send_command(0x07) # DEEP_SLEEP
         self.send_data(0XA5)
         
-        epdconfig.module_exit()
+        epdconfig.module_exit()        
+        
 ### END OF FILE ###
 

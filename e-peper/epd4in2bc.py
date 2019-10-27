@@ -1,10 +1,10 @@
 # *****************************************************************************
-# * | File        :	  epd1in54_V2.py
+# * | File        :	  epd4in2bc.py
 # * | Author      :   Waveshare team
 # * | Function    :   Electronic paper driver
 # * | Info        :
 # *----------------
-# * | This version:   V1
+# * | This version:   V4.0
 # * | Date        :   2019-06-20
 # # | Info        :   python demo
 # -----------------------------------------------------------------------------
@@ -28,11 +28,11 @@
 #
 
 import logging
-from . import epdconfig
+from waveshare_epd import epdconfig
 
 # Display resolution
-EPD_WIDTH       = 200
-EPD_HEIGHT      = 200
+EPD_WIDTH       = 400
+EPD_HEIGHT      = 300
 
 class EPD:
     def __init__(self):
@@ -42,7 +42,7 @@ class EPD:
         self.cs_pin = epdconfig.CS_PIN
         self.width = EPD_WIDTH
         self.height = EPD_HEIGHT
-        
+
     # Hardware reset
     def reset(self):
         epdconfig.digital_write(self.reset_pin, 1)
@@ -66,83 +66,36 @@ class EPD:
         
     def ReadBusy(self):
         logging.debug("e-Paper busy")
-        while(epdconfig.digital_read(self.busy_pin) == 1):
+        while(epdconfig.digital_read(self.busy_pin) == 0): # 0: idle, 1: busy
             epdconfig.delay_ms(100)
         logging.debug("e-Paper busy release")
-
-    def TurnOnDisplay(self):
-        self.send_command(0x22) # DISPLAY_UPDATE_CONTROL_2
-        self.send_data(0xF7)
-        self.send_command(0x20) # MASTER_ACTIVATION
-        
-        self.ReadBusy()
-    
-    def TurnOnDisplayPart(self):
-        self.send_command(0x22) # DISPLAY_UPDATE_CONTROL_2
-        self.send_data(0xFF)
-        self.send_command(0x20) # MASTER_ACTIVATION
-        
-        self.ReadBusy()
-
+            
     def init(self):
         if (epdconfig.module_init() != 0):
             return -1
             
-        # EPD hardware init start
         self.reset()
-        
-        self.ReadBusy()
-        self.send_command(0x12) # SWRESET
-        self.ReadBusy()
-        
-        self.send_command(0x01) # DRIVER_OUTPUT_CONTROL
-        self.send_data(0xC7) # (EPD_HEIGHT - 1) & 0xFF
-        self.send_data(0x00) # ((EPD_HEIGHT - 1) >> 8) & 0xFF
-        self.send_data(0x01) # GD = 0 SM = 0 TB = 0
-        
-        self.send_command(0x11) # data entry mode
-        self.send_data(0x01)
-        
-        self.send_command(0x44) # set Ram-X address start/end position
-        self.send_data(0x00)
-        self.send_data(0x18) # 0x0C-->(18+1)*8=200
-        
-        self.send_command(0x45) # set Ram-Y address start/end position
-        self.send_data(0xC7) # 0xC7-->(199+1)=200
-        self.send_data(0x00)
-        self.send_data(0x00)
-        self.send_data(0x00)
 
-        self.send_command(0x3C) # BorderWavefrom
-        self.send_data(0x01)
-
-        self.send_command(0x18)
-        self.send_data(0x80)
-
-        self.send_command(0x22) # #Load Temperature and waveform setting.
-        self.send_data(0XB1)
-        self.send_command(0x20)
-
-        self.send_command(0x4E) # set RAM x address count to 0;
-        self.send_data(0x00)
-        self.send_command(0x4F) # set RAM y address count to 0X199;
-        self.send_data(0xC7)
-        self.send_data(0x00)
+        self.send_command(0x06) # BOOSTER_SOFT_START
+        self.send_data (0x17)
+        self.send_data (0x17)
+        self.send_data (0x17) # 07 0f 17 1f 27 2F 37 2f
         
+        self.send_command(0x04) # POWER_ON
         self.ReadBusy()
         
-    def Clear(self, color):
-        self.send_command(0x24)
-        for j in range(0, self.height):
-            for i in range(0, int(self.width / 8)):
-                self.send_data(color)
-        self.TurnOnDisplay()
+        self.send_command(0x00) # PANEL_SETTING
+        self.send_data(0x0F) # LUT from OTP
         
+        return 0
+
     def getbuffer(self, image):
+        # logging.debug("bufsiz = ",int(self.width/8) * self.height)
         buf = [0xFF] * (int(self.width/8) * self.height)
         image_monocolor = image.convert('1')
         imwidth, imheight = image_monocolor.size
         pixels = image_monocolor.load()
+        # logging.debug("imwidth = %d, imheight = %d",imwidth,imheight)
         if(imwidth == self.width and imheight == self.height):
             logging.debug("Horizontal")
             for y in range(imheight):
@@ -160,48 +113,36 @@ class EPD:
                         buf[int((newx + newy*self.width) / 8)] &= ~(0x80 >> (y % 8))
         return buf
 
-    def display(self, image):
-        if (image == None):
-            return
+    def display(self, imageblack, imagered):
+        self.send_command(0x10)
+        for i in range(0, int(self.width * self.height / 8)):
+            self.send_data(imageblack[i])
+        
+        self.send_command(0x13)
+        for i in range(0, int(self.width * self.height / 8)):
+            self.send_data(imagered[i])
+        
+        self.send_command(0x12) 
+        self.ReadBusy()
+        
+    def Clear(self):
+        self.send_command(0x10)
+        for i in range(0, int(self.width * self.height / 8)):
+            self.send_data(0xFF)
             
-        self.send_command(0x24)
-        for j in range(0, self.height):
-            for i in range(0, int(self.width / 8)):
-                self.send_data(image[i + j * int(self.width / 8)])   
-        self.TurnOnDisplay()
+        self.send_command(0x13)
+        for i in range(0, int(self.width * self.height / 8)):
+            self.send_data(0xFF)
         
-    def displayPartBaseImage(self, image):
-        if (image == None):
-            return
-            
-        self.send_command(0x24)
-        for j in range(0, self.height):
-            for i in range(0, int(self.width / 8)):
-                self.send_data(image[i + j * int(self.width / 8)])
-        
-        self.send_command(0x26)
-        for j in range(0, self.height):
-            for i in range(0, self.width / 8):
-                self.send_data(image[i + j * int(self.width / 8)])
-                
-        self.TurnOnDisplayPart()
-        
-    def displayPart(self, image):
-        if (image == None):
-            return
-            
-        self.send_command(0x24)
-        for j in range(0, self.height):
-            for i in range(0, int(self.width / 8)):
-                self.send_data(image[i + j * int(self.width / 8)])
-                
-        self.TurnOnDisplayPart()
-        
+        self.send_command(0x12) 
+        self.ReadBusy()
+
     def sleep(self):
-        self.send_command(0x10) # DEEP_SLEEP_MODE
-        self.send_data(0x01)
+        self.send_command(0x02) # POWER_OFF
+        self.ReadBusy()
+        self.send_command(0x07) # DEEP_SLEEP
+        self.send_data(0xA5) # check code
         
         epdconfig.module_exit()
-
 ### END OF FILE ###
 

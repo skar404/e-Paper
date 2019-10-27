@@ -11,7 +11,6 @@ import logging
 from waveshare_epd import epd2in13d
 import time
 from PIL import Image,ImageDraw,ImageFont
-import traceback
 
 #Set output log level
 logging.basicConfig(level=logging.DEBUG)
