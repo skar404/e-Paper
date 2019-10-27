@@ -31,9 +31,9 @@ https://www.waveshare.com
 
 ---
 
-|   |   |
-|---|---|
+
 | File      	|   Readme_CN.txt |
+|---|---|
 | Author      |   Waveshare team |
 | Function    |   Help with use |
 | Info        | |
