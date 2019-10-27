@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "e-paper"
+version = "0.1.0"
+description = ""
+authors = ["skar404 <skar404@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+fake_rpi = {git = "https://github.com/sn4k3/FakeRPi"}
+Pillow = "^6.2"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"

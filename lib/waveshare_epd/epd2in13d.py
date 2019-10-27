@@ -31,7 +31,21 @@
 import logging
 from . import epdconfig
 from PIL import Image
-import RPi.GPIO as GPIO
+import importlib.util
+
+try:
+    # Check and import real RPi.GPIO library
+    importlib.util.find_spec('RPi.GPIO')
+    import RPi.GPIO as GPIO
+except ImportError:
+    # If real RPi.GPIO library fails, load the fake one
+    """
+    import FakeRPi.GPIO as GPIO
+    OR
+    import FakeRPi.RPiO as RPiO
+    """
+
+    import FakeRPi.GPIO as GPIO
 
 # Display resolution
 EPD_WIDTH       = 104

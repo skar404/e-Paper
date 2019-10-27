@@ -42,7 +42,20 @@ class RaspberryPi:
 
     def __init__(self):
         import spidev
-        import RPi.GPIO
+        import importlib.util
+        try:
+            # Check and import real RPi.GPIO library
+            importlib.util.find_spec('RPi.GPIO')
+            import RPi.GPIO as GPIO
+        except ImportError:
+            # If real RPi.GPIO library fails, load the fake one
+            """
+            import FakeRPi.GPIO as GPIO
+            OR
+            import FakeRPi.RPiO as RPiO
+            """
+
+            import FakeRPi.GPIO as GPIO
 
         self.GPIO = RPi.GPIO
 
